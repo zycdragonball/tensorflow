@@ -49,6 +49,7 @@ py_library(
         "//tensorflow/contrib/nn:nn_py",
         "//tensorflow/contrib/opt:opt_py",
         "//tensorflow/contrib/quantization:quantization_py",
+        "//tensorflow/contrib/repeat:repeat_py",
         "//tensorflow/contrib/rnn:rnn_py",
         "//tensorflow/contrib/saved_model:saved_model_py",
         "//tensorflow/contrib/seq2seq:seq2seq_py",
