@@ -230,6 +230,7 @@ filegroup(
         "//tensorflow/contrib/ndlstm:all_files",
         "//tensorflow/contrib/nn:all_files",
         "//tensorflow/contrib/opt:all_files",
+        "//tensorflow/contrib/repeat:all_files",
         "//tensorflow/contrib/rnn:all_files",
         "//tensorflow/contrib/saved_model:all_files",
         "//tensorflow/contrib/seq2seq:all_files",
