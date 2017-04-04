@@ -48,6 +48,7 @@ from tensorflow.contrib import metrics
 from tensorflow.contrib import nn
 from tensorflow.contrib import opt
 from tensorflow.contrib import quantization
+from tensorflow.contrib import repeat
 from tensorflow.contrib import rnn
 from tensorflow.contrib import saved_model
 from tensorflow.contrib import seq2seq
