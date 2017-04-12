@@ -11,7 +11,13 @@ tf_custom_op_library(
     name = "python/ops/_repeat_op.so",
     srcs = [
         "kernels/repeat_op.cc",
+        "kernels/repeat_op_cpu_impl.cc",
+        "kernels/repeat_op_gpu_impl.cc",
+        "kernels/repeat_op.h",
         "ops/repeat_op.cc",
+    ],
+    gpu_srcs = [
+        "kernels/repeat_op_gpu_impl.cu.cc",
     ],
 )
 
