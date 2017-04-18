@@ -18,11 +18,13 @@ limitations under the License.
 
 namespace tensorflow{
 
+// Single thread version of cpu implementation
 template <typename T>
 void RepeatCPUImpl(const Tensor& input,
                    const typename TTypes<int32>::ConstFlat& repeats_flat,
                    int axis, Tensor* output);
                    
+// Multi-thread version of cpu implementation
 template <typename T>
 void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
                      const typename TTypes<int32>::ConstFlat& repeats_flat,

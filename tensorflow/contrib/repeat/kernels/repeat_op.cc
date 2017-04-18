@@ -85,8 +85,6 @@ class RepeatOp : public OpKernel {
   
 };
 
-//TODO: add gradient op
-
 
 #define REGISTER_KERNEL(type)                    \
   REGISTER_KERNEL_BUILDER(                       \
