@@ -20,8 +20,12 @@ from __future__ import print_function
 
 import numpy as np
 
-from tensorflow.contrib.repeat.python.ops import repeat
+from tensorflow.contrib.repeat.python.ops import repeat_op
+from tensorflow.python.framework import constant_op
+from tensorflow.python.ops import gradient_checker
 from tensorflow.python.platform import test
+
+repeat = repeat_op.repeat
 
 class RepeatTest(test.TestCase):
   
@@ -75,6 +79,51 @@ class RepeatTest(test.TestCase):
   def testInt64(self):
     self._testScalar(np.int64)
     self._testVector(np.int64)
+    
+class RepeatGradTest(test.TestCase):
+  
+  def _testRepeatGrad(self, input, repeats, axis):
+    output = repeat(input, repeats, axis)
+    in_shape = input.get_shape().as_list()
+    out_shape = output.get_shape().as_list()
+    with self.test_session():
+      err = gradient_checker.compute_gradient_error(
+          input, in_shape, output, out_shape)
+    self.assertLess(err, 1e-3)
+    
+  def _testScalar(self, dtype):
+    input = constant_op.constant(
+        np.asarray(100 * np.random.randn(20), dtype=dtype))
+    repeats = 2
+    axis = 0
+    self._testRepeatGrad(input, repeats, axis)
+    
+    input = constant_op.constant(
+        np.asarray(100 * np.random.randn(3, 2, 4), dtype=dtype))
+    repeats = 3
+    axis = 1
+    self._testRepeatGrad(input, repeats, axis)
+    
+  def _testVector(self, dtype):
+    input = constant_op.constant(
+        np.asarray(100 * np.random.randn(20), dtype=dtype))
+    repeats = np.asarray(10 * np.random.randn(20), dtype=np.int32) % 5
+    axis = 0
+    self._testRepeatGrad(input, repeats, axis)
+    
+    input = constant_op.constant(
+        np.asarray(100 * np.random.randn(3, 2, 4), dtype=dtype))
+    repeats = np.asarray(10 * np.random.randn(4), dtype=np.int32) % 5
+    axis = 2
+    self._testRepeatGrad(input, repeats, axis)
+    
+  def testFloat(self):
+    self._testScalar(np.float32)
+    self._testVector(np.float32)
+
+  def testDouble(self):
+    self._testScalar(np.float64)
+    self._testVector(np.float64)
   
 if __name__ == "__main__":
   test.main()
