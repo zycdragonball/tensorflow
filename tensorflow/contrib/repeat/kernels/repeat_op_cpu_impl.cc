@@ -32,7 +32,7 @@ struct MemCopier {
   }
 };
 
-} //end namespace
+} // end namespace
 
 template <typename T>
 void RepeatCPUImpl(const Tensor& input,
@@ -42,7 +42,7 @@ void RepeatCPUImpl(const Tensor& input,
   auto output_flat = output->flat<T>();
   MemCopier<T> copier;
     
-  //A batch is inner dimensions > axis
+  // A batch is inner dimensions > axis
   size_t batch_size = 1;
   int32 dims = input.shape().dims();
   for (int32 i = axis + 1; i < dims; ++i) {
@@ -81,8 +81,8 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
   auto output_flat = output->flat<T>();
   MemCopier<T> copier;
   
-  //A batch is inner dimensions > axis
-  //A group is inner dimensions >= axis
+  // A batch is inner dimensions > axis
+  // A group is inner dimensions >= axis
   int64 batch_size = 1;
   int32 dims = input.shape().dims();
   for (int32 i = axis + 1; i < dims; ++i) {
@@ -100,6 +100,10 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
         static_cast<int>(std::min<int64>(num_threads, output_flat.size() / 4096));
   }
   
+  if (num_threads == 0) {
+    RepeatCPUImpl<T>(input, repeats_flat, axis, output);
+  }
+  
   auto work = [input_flat, repeats_flat, axis, &copier,
                batch_size, group_pre_size, group_size, &output_flat](
       int64 start, int64 end) {
@@ -113,10 +117,10 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
       in += (start/out_batch_size) * batch_size;
       out += (start/batch_size) * batch_size;
       
-      //handle partial out_batch at start
+      // handle partial out_batch at start
       if (start % out_batch_size != 0) {
         int64 offset = start % batch_size;
-        //handle partial batch at start
+        // handle partial batch at start
         if (offset != 0) {
           if (out + batch_size > out_end) {
             copier.Copy(in + offset, out_start, (out_end-out) - offset);
@@ -138,7 +142,7 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
         in += batch_size;
       }
       
-      //handle remaining data
+      // handle remaining data
       int64 batch_to_cpy = (out_end-out) / out_batch_size + 1;
       for (int64 i = 0; i < batch_to_cpy; ++i) {
         for (int64 j = 0; j < repeats_flat(0); ++j) {
@@ -157,7 +161,7 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
       in += skip_group * group_pre_size;
       out += skip_group * group_size;      
       
-      //handle partial group at start
+      // handle partial group at start
       bool started = false;
       if (start % group_size != 0) {
         for (int64 j = 0; j < repeats_flat.size(); ++j) {
@@ -189,7 +193,7 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
         }
       }
       
-      //handle remaining data
+      // handle remaining data
       int64 group_to_cpy = (out_end-out) / group_size + 1;
       for (int64 i = 0; i < group_to_cpy; ++i) {
         for (int64 j = 0; j < repeats_flat.size(); ++j) {
@@ -229,4 +233,4 @@ TF_CALL_ALL_TYPES(REGISTER_V2);
 #undef REGISTER
 #undef REGISTER_V2
 
-} //end namespace tensorflow
+} // end namespace tensorflow
