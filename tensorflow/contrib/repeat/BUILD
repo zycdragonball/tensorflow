@@ -43,6 +43,10 @@ tf_custom_op_py_library(
     deps = [
         ":repeat_op",
         "//tensorflow/contrib/util:util_py",
+        "//tensorflow/python:array_ops",
+        "//tensorflow/python:constant_op",
+        "//tensorflow/python:init_ops",
+        "//tensorflow/python:math_ops",
         "//tensorflow/python:platform",
         "//third_party/py/numpy",
     ],
@@ -56,8 +60,10 @@ py_test(
     srcs_version = "PY2AND3",
     deps = [
         ":repeat_py",
-        "//tensorflow/python:platform_test",
         "//third_party/py/numpy",
+        "//tensorflow/python:constant_op",
+        "//tensorflow/python:gradients",
+        "//tensorflow/python:platform_test",
     ],
 )
     
