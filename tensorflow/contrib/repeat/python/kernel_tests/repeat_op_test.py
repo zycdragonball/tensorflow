@@ -64,21 +64,36 @@ class RepeatTest(test.TestCase):
     axis = 2
     self._testRepeat(input, repeats, axis)
     
+  def _testNegativeAxis(self, dtype, use_gpu=False):
+    input = np.asarray(100 * np.random.randn(200), dtype=dtype)
+    repeats = 2
+    axis = -1
+    self._testRepeat(input, repeats, axis, use_gpu=use_gpu)
+    
+    input = np.asarray(100 * np.random.randn(3, 2, 4, 5, 6), dtype=dtype)
+    repeats = np.asarray(10 * np.random.randn(5), dtype=np.int32) % 5
+    axis = -2
+    self._testRepeat(input, repeats, axis, use_gpu=use_gpu)
+    
   def testFloat(self):
     self._testScalar(np.float32)
     self._testVector(np.float32)
+    self._testNegativeAxis(np.float32)
 
   def testDouble(self):
     self._testScalar(np.float64)
     self._testVector(np.float64)
+    self._testNegativeAxis(np.float64)
 
   def testInt32(self):
     self._testScalar(np.int32)
     self._testVector(np.int32)
+    self._testNegativeAxis(np.int32)
 
   def testInt64(self):
     self._testScalar(np.int64)
     self._testVector(np.int64)
+    self._testNegativeAxis(np.int64)
     
 class RepeatGradTest(test.TestCase):
   
