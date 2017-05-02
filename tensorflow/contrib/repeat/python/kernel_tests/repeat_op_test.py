@@ -43,6 +43,11 @@ class RepeatTest(test.TestCase):
           repeat(input, repeats, axis).eval()
     
   def _testScalar(self, dtype):
+    input = 5
+    repeats = 4
+    axis = 0
+    self._testRepeat(input, repeats, axis, use_gpu=use_gpu)
+    
     input = np.asarray(100 * np.random.randn(200), dtype=dtype)
     repeats = 2
     axis = 0
