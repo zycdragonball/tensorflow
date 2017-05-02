@@ -37,11 +37,18 @@ REGISTER_OP("Repeat")
       TF_RETURN_IF_ERROR(c->WithRankAtMost(repeats, 1, &repeats));
       
       int32 rank = c->Rank(input);
-      if (axis < 0 || axis >= rank) {
-        return errors::InvalidArgument("Expected 0 <= `axis` < ", rank);
+      if (rank == 0) {
+        rank = 1;
+        input = c->MakeShape({1});
+      }
+      if (axis < -rank || axis >= rank) {
+        return errors::InvalidArgument("Expected -", rank, " <= `axis` < ", rank);
       }
       
       int64 repeats_len = c->Value(c->NumElements(repeats));
+      if (axis < 0) {
+        axis += rank;
+      }
       
       DimensionHandle new_dim = c->MakeDim(0);
       if (c->Rank(repeats) == 0) {
@@ -80,7 +87,7 @@ This operation creates a new tensor by repeating each element of `input`
 `repeats` times along `axis`. The output tensor has the same shape as `input`,
 except along the given `axis`. For example, repeating `[a b c d]` by
 `[2,1,3,4]` along `axis=0` produces `[a a b c c c d d d d]`.
-input: 1-D or higher.
+input: 0-D or higher.
 repeats: Scalar or 1-D. Length must be 1 or the dimension of `input` along `axis`.
 axis: 0 <= axis < rank of `input`.
 )doc");
