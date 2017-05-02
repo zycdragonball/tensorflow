@@ -38,22 +38,31 @@ class RepeatOp : public OpKernel {
   void Compute(OpKernelContext* context) override {
     const Tensor& input = context->input(0);
     const Tensor& repeats = context->input(1);
+    const int input_rank = input.dims()==0 ? 1 : input.dims();
+    const int32 axis = axis_>=0 ? axis_ : axis_+input_rank;
     
     OP_REQUIRES(context, TensorShapeUtils::IsVector(repeats.shape()) ||
                          TensorShapeUtils::IsScalar(repeats.shape()),
                 errors::InvalidArgument("`repeats` expects a scalar or a 1-D vector."));
-    OP_REQUIRES(context, repeats.NumElements() == input.dim_size(axis_) ||
+    OP_REQUIRES(context, FastBoundsCheck(axis, input_rank),
+                errors::InvalidArgument(
+                    "Expected -", input_rank, " <= `axis` < ", input_rank));
+    OP_REQUIRES(context, repeats.NumElements() == input.dim_size(axis) ||
                          repeats.NumElements() == 1,
                 errors::InvalidArgument(
                     "Expected `repeats` argument to be a vector of length ",
                     input.dim_size(axis_), " or 1, but got length ",
                     repeats.NumElements()));
-    OP_REQUIRES(context, FastBoundsCheck(axis_, input.dims()),
-                errors::InvalidArgument("Expected 0 <= `axis` < ", input.dims()));
     
-    TensorShape output_shape = input.shape();
     auto repeats_flat = repeats.flat<int32>();
-    const int old_dim = input.shape().dim_size(axis_);
+    TensorShape output_shape({1});
+    int old_dim;
+    if (input.dims() != 0) {
+      output_shape = input.shape();
+      old_dim = input.shape().dim_size(axis);
+    } else {
+      old_dim = 1;
+    }
     int new_dim = 0;
     if (repeats.NumElements() == 1) {
       new_dim = repeats_flat(0) * old_dim;
@@ -63,7 +72,7 @@ class RepeatOp : public OpKernel {
         new_dim += repeats_flat(i);
       }
     }
-    output_shape.set_dim(axis_, new_dim);
+    output_shape.set_dim(axis, new_dim);
     
     Tensor* output = NULL;
     OP_REQUIRES_OK(context, context->allocate_output(0, output_shape, &output));
@@ -71,13 +80,13 @@ class RepeatOp : public OpKernel {
 
 #if GOOGLE_CUDA
     if (std::is_same<Device, GPUDevice>::value) {
-      RepeatGPUImpl<T>(context->eigen_gpu_device(), input, repeats_flat, axis_, output);
+      RepeatGPUImpl<T>(context->eigen_gpu_device(), input, repeats_flat, axis, output);
       return ;
     }
 #endif // GOOGLE_CUDA
 
     RepeatCPUImplV2<T>(context->device(), input, repeats_flat,
-                       axis_, 10000, output); 
+                       axis, 10000, output); 
   }
   
  private:
