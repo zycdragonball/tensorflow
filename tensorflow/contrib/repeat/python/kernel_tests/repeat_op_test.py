@@ -113,6 +113,12 @@ class RepeatGradTest(test.TestCase):
     
   def _testScalar(self, dtype):
     input = constant_op.constant(
+        np.asarray(100 * np.random.randn(1), dtype=dtype), shape = [])
+    repeats = 5
+    axis = 0
+    self._testRepeatGrad(input, repeats, axis)
+    
+    input = constant_op.constant(
         np.asarray(100 * np.random.randn(20), dtype=dtype))
     repeats = 2
     axis = 0
