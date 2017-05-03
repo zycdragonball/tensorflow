@@ -42,7 +42,7 @@ void RepeatCPUImpl(const Tensor& input,
   auto output_flat = output->flat<T>();
   MemCopier<T> copier;
     
-  // A batch is inner dimensions > axis
+  // a batch is inner axes > axis
   size_t batch_size = 1;
   int32 dims = input.shape().dims();
   for (int32 i = axis + 1; i < dims; ++i) {
@@ -52,23 +52,24 @@ void RepeatCPUImpl(const Tensor& input,
   
   const T* in = input_flat.data();
   T* out = output_flat.data();
+  
+  // copy an in_batch to its out_batches
+  auto handle_batch = [&in, batch_size, &out, &copier](int32 repeat) {
+    for (int64 j = 0; j < repeat; ++j) {
+      copier.Copy(in, out, batch_size);
+      out += batch_size;
+    }
+    in += batch_size;
+    return;
+  };
+  
   if (repeats_flat.size() == 1) {
     for (int64 i = 0; i < num_batch; ++i) {
-      int32 repeat = repeats_flat(0);
-      for (int64 j = 0; j < repeat; ++j) {
-        copier.Copy(in, out, batch_size);
-        out += batch_size;
-      }
-      in += batch_size;
+      handle_batch(repeats_flat(0));
     }
   } else {
     for (int64 i = 0; i < num_batch; ++i) {
-      int32 repeat = repeats_flat(i % repeats_flat.size());
-      for (int64 j = 0; j < repeat; ++j) {
-        copier.Copy(in, out, batch_size);
-        out += batch_size;
-      }
-      in += batch_size;
+      handle_batch(repeats_flat(i % repeats_flat.size()));
     }
   }
 }
@@ -81,8 +82,8 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
   auto output_flat = output->flat<T>();
   MemCopier<T> copier;
   
-  // A batch is inner dimensions > axis
-  // A group is inner dimensions >= axis
+  // a batch is inner axes > axis
+  // a group is inner axes >= axis
   int64 batch_size = 1;
   int32 dims = input.shape().dims();
   for (int32 i = axis + 1; i < dims; ++i) {
@@ -106,107 +107,52 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
   
   auto work = [input_flat, repeats_flat, axis, &copier,
                batch_size, group_pre_size, group_size, &output_flat](
-      int64 start, int64 end) {
+      int64 out_begin_index, int64 out_end_index) {
     const T* in = input_flat.data();
     T* out = output_flat.data();
-    T* out_start = out + start;
-    T* out_end = out + end;
-              
-    if (repeats_flat.size() == 1) {
-      int64 out_batch_size = batch_size * repeats_flat(0);
-      in += (start/out_batch_size) * batch_size;
-      out += (start/batch_size) * batch_size;
-      
-      // handle partial out_batch at start
-      if (start % out_batch_size != 0) {
-        int64 offset = start % batch_size;
-        // handle partial batch at start
-        if (offset != 0) {
-          if (out + batch_size > out_end) {
-            copier.Copy(in + offset, out_start, (out_end-out) - offset);
-            return ;
+    T* out_start = out + out_begin_index;
+    T* out_end = out + out_end_index;
+    
+    // handle partial group at start
+    int64 skip_group = out_begin_index / group_size;
+    in += skip_group * group_pre_size;
+    out += skip_group * group_size;
+    
+    if (out_begin_index % group_size != 0) {
+      for (int64 j = 0; j < repeats_flat.size(); ++j) {
+        for (int64 k = 0; k < repeats_flat(j); ++k) {
+          if (out + batch_size <= out_start) {
+            out += batch_size;
+            continue;
           }
-          copier.Copy(in + offset, out_start, batch_size - offset);
+          
+          int64 offset = out_start - out;
+          offset = offset>0 ? offset : 0;
+          if (out + batch_size > out_end) {
+            copier.Copy(in + offset, out + offset, (out_end-out) - offset);
+            return;
+          }
+          copier.Copy(in + offset, out + offset, batch_size - offset);
+          
           out += batch_size;
         }
-        
-        int64 repeat_skip = (out-output_flat.data())/batch_size % repeats_flat(0);
-        for(int64 i = repeat_skip; i < repeats_flat(0); ++i) {
+        in += batch_size;
+      }
+    }
+    
+    // handle remaining data
+    int64 group_to_cpy = (out_end-out) / group_size + 1;
+    for (int64 i = 0; i < group_to_cpy; ++i) {
+      for (int64 j = 0; j < repeats_flat.size(); ++j) {
+        for (int64 k = 0; k < repeats_flat(j); ++k) {
           if (out + batch_size > out_end) {
             copier.Copy(in, out, out_end - out);
-            return ;
+            return;
           }
           copier.Copy(in, out, batch_size);
           out += batch_size;
         }
         in += batch_size;
-      }
-      
-      // handle remaining data
-      int64 batch_to_cpy = (out_end-out) / out_batch_size + 1;
-      for (int64 i = 0; i < batch_to_cpy; ++i) {
-        for (int64 j = 0; j < repeats_flat(0); ++j) {
-          if (out + batch_size > out_end) {
-            copier.Copy(in, out, out_end - out);
-            return ;
-          }
-          copier.Copy(in, out, batch_size);
-          out += batch_size;
-        }
-        in += batch_size;
-      }
-      
-    } else {
-      int64 skip_group = start / group_size;
-      in += skip_group * group_pre_size;
-      out += skip_group * group_size;      
-      
-      // handle partial group at start
-      bool started = false;
-      if (start % group_size != 0) {
-        for (int64 j = 0; j < repeats_flat.size(); ++j) {
-          for (int64 k = 0; k < repeats_flat(j); ++k) {
-            if (out + batch_size <= out_start) {
-              out += batch_size;
-              continue;
-            }
-            
-            if (started) {
-              if (out + batch_size > out_end) {
-                copier.Copy(in, out, out_end - out);
-                return ;
-              }
-              copier.Copy(in, out, batch_size);
-            } else {
-              int64 offset = out_start-out;
-              if (out + batch_size > out_end) {
-                copier.Copy(in + offset, out_start, (out_end-out) - offset);
-                return ;
-              }
-              copier.Copy(in + offset, out_start, batch_size - offset);
-              started = true;
-            }
-            
-            out += batch_size;
-          }
-          in += batch_size;
-        }
-      }
-      
-      // handle remaining data
-      int64 group_to_cpy = (out_end-out) / group_size + 1;
-      for (int64 i = 0; i < group_to_cpy; ++i) {
-        for (int64 j = 0; j < repeats_flat.size(); ++j) {
-          for (int64 k = 0;  k < repeats_flat(j); ++k) {
-            if (out + batch_size > out_end) {
-              copier.Copy(in, out, out_end - out);
-              return ;
-            }
-            copier.Copy(in, out, batch_size);
-            out += batch_size;
-          }
-          in += batch_size;
-        }
       }
     }
   };
