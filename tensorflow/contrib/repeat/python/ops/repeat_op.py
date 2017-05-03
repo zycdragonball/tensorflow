@@ -31,10 +31,16 @@ repeat = _repeat_so.repeat
 @ops.RegisterGradient("Repeat")
 def _RepeatGrad(op, grad):
   """Sum reduces grads along the repeated dimension"""
-  input_shape = op.inputs[0].get_shape().as_list()
+  input_raw_shape = op.inputs[0].get_shape().as_list()
+  if len(input_raw_shape) == 0:
+    input_shape = [1]
+  else:
+    input_shape = input_raw_shape
   output_shape = op.outputs[0].get_shape().as_list()
   repeats = op.inputs[1]
   axis = op.get_attr("axis")
+  if axis < 0:
+    axis += len(input_shape)
   
   # Collapse the outer and inner dimensions
   outer_dim = 1
@@ -58,5 +64,5 @@ def _RepeatGrad(op, grad):
     input_grads.append(
         math_ops.reduce_sum(out_grad[:, start[0]:end[0], :], 1))
     start = end
-  in_grad = array_ops.reshape(array_ops.stack(input_grads, 1), input_shape)
+  in_grad = array_ops.reshape(array_ops.stack(input_grads, 1), input_raw_shape)
   return [in_grad, None]
