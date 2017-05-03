@@ -21,6 +21,9 @@ limitations under the License.
 #include "tensorflow/core/kernels/bounds_check.h"
 #include "tensorflow/contrib/repeat/kernels/repeat_op.h"
 
+// used in cpu implementation sharded mode
+const int kCostPerUnit = 10000;
+
 namespace tensorflow{
 
 typedef Eigen::ThreadPoolDevice CPUDevice;
@@ -86,7 +89,7 @@ class RepeatOp : public OpKernel {
 #endif // GOOGLE_CUDA
 
     RepeatCPUImplV2<T>(context->device(), input, repeats_flat,
-                       axis, 10000, output); 
+                       axis, kCostPerUnit, output); 
   }
   
  private:
