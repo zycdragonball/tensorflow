@@ -22,25 +22,12 @@ limitations under the License.
 
 namespace tensorflow{
 
-namespace {
-
-template <typename T>
-struct MemCopier {
-  
-  inline void Copy(const T* input, T* output, int64 size){
-    std::copy(input, input + size, output);
-  }
-};
-
-} // end namespace
-
 template <typename T>
 void RepeatCPUImpl(const Tensor& input,
                    const typename TTypes<int32>::ConstFlat& repeats_flat,
                    int axis, Tensor* output) {
   auto input_flat = input.flat<T>();
   auto output_flat = output->flat<T>();
-  MemCopier<T> copier;
     
   // a batch is inner axes > axis
   size_t batch_size = 1;
@@ -54,9 +41,9 @@ void RepeatCPUImpl(const Tensor& input,
   T* out = output_flat.data();
   
   // copy an in_batch to its out_batches
-  auto handle_batch = [&in, batch_size, &out, &copier](int32 repeat) {
+  auto handle_batch = [&in, batch_size, &out](int32 repeat) {
     for (int64 j = 0; j < repeat; ++j) {
-      copier.Copy(in, out, batch_size);
+      std::copy(in, in + batch_size, out);
       out += batch_size;
     }
     in += batch_size;
@@ -80,7 +67,6 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
                      int axis, int64 cost_per_unit, Tensor* output) {
   auto input_flat = input.flat<T>();
   auto output_flat = output->flat<T>();
-  MemCopier<T> copier;
   
   // a batch is inner axes > axis
   // a group is inner axes >= axis
@@ -105,7 +91,7 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
     RepeatCPUImpl<T>(input, repeats_flat, axis, output);
   }
   
-  auto work = [input_flat, repeats_flat, axis, &copier,
+  auto work = [input_flat, repeats_flat, axis,
                batch_size, group_pre_size, group_size, &output_flat](
       int64 out_begin_index, int64 out_end_index) {
     const T* in = input_flat.data();
@@ -129,10 +115,10 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
           int64 offset = out_start - out;
           offset = offset>0 ? offset : 0;
           if (out + batch_size > out_end) {
-            copier.Copy(in + offset, out + offset, (out_end-out) - offset);
+            std::copy(in + offset, in + (out_end-out), out + offset);
             return;
           }
-          copier.Copy(in + offset, out + offset, batch_size - offset);
+          std::copy(in + offset, in + batch_size, out + offset);
           
           out += batch_size;
         }
@@ -146,10 +132,10 @@ void RepeatCPUImplV2(DeviceBase* d, const Tensor& input,
       for (int64 j = 0; j < repeats_flat.size(); ++j) {
         for (int64 k = 0; k < repeats_flat(j); ++k) {
           if (out + batch_size > out_end) {
-            copier.Copy(in, out, out_end - out);
+            std::copy(in, in + (out_end-out), out);
             return;
           }
-          copier.Copy(in, out, batch_size);
+          std::copy(in, in + batch_size, out);
           out += batch_size;
         }
         in += batch_size;
