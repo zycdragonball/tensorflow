@@ -32,11 +32,13 @@ repeat = _repeat_so.repeat
 def _RepeatGrad(op, grad):
   """Sum reduces grads along the repeated dimension"""
   input_raw_shape = op.inputs[0].get_shape().as_list()
+  input_raw_shape_tensor = array_ops.shape(op.inputs[0])
   if len(input_raw_shape) == 0:
     input_shape = [1]
+    input_shape_tensor = constant_op.constant([1])
   else:
     input_shape = input_raw_shape
-  output_shape = op.outputs[0].get_shape().as_list()
+    input_shape_tensor = input_raw_shape_tensor
   repeats = op.inputs[1]
   axis = op.get_attr("axis")
   if axis < 0:
@@ -45,11 +47,12 @@ def _RepeatGrad(op, grad):
   # Collapse the outer and inner dimensions
   outer_dim = 1
   for i in xrange(axis):
-    outer_dim *= input_shape[i]
+    outer_dim *= input_shape_tensor[i]
   inner_dim = 1
   for i in xrange(axis+1, len(input_shape)):
-    inner_dim *= input_shape[i]
+    inner_dim *= input_shape_tensor[i]
   out_grad = array_ops.reshape(grad, [outer_dim, -1, inner_dim])
+  
   
   # Handle the scalar case of `repeats`
   if repeats.get_shape().as_list() == []:
@@ -64,5 +67,5 @@ def _RepeatGrad(op, grad):
     input_grads.append(
         math_ops.reduce_sum(out_grad[:, start[0]:end[0], :], 1))
     start = end
-  in_grad = array_ops.reshape(array_ops.stack(input_grads, 1), input_raw_shape)
+  in_grad = array_ops.reshape(array_ops.stack(input_grads, 1), input_raw_shape_tensor)
   return [in_grad, None]
