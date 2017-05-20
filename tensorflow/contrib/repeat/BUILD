@@ -30,13 +30,13 @@ tf_gen_op_wrapper_py(
     deps = [":repeat_op_op_lib"],
 )
 
-tf_custom_op_py_library(
+py_library(
     name = "repeat_py",
     srcs = [
         "__init__.py",
         "python/ops/repeat_op.py",
     ],
-    dso = [
+    data = [
         ":python/ops/_repeat_op.so",
     ],
     srcs_version = "PY2AND3",
@@ -60,10 +60,10 @@ py_test(
     srcs_version = "PY2AND3",
     deps = [
         ":repeat_py",
-        "//third_party/py/numpy",
         "//tensorflow/python:constant_op",
         "//tensorflow/python:gradients",
         "//tensorflow/python:platform_test",
+        "//third_party/py/numpy",
     ],
 )
     
