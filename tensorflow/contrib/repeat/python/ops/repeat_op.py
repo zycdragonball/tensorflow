@@ -28,6 +28,7 @@ _repeat_so = loader.load_op_library(
     resource_loader.get_path_to_datafile("_repeat_op.so"))
 repeat = _repeat_so.repeat
 
+# TODO: use tf.reduce_slice_sum #9063
 @ops.RegisterGradient("Repeat")
 def _RepeatGrad(op, grad):
   """Sum reduces grads along the repeated dimension"""
