@@ -16,6 +16,7 @@ limitations under the License.
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_kernel.h"
+#include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/framework/tensor_types.h"
 #include "tensorflow/core/framework/register_types.h"
 
@@ -34,22 +35,8 @@ template <typename T>
 void RepeatGPUImpl(const Eigen::GpuDevice& d, const Tensor& input,
                    const typename TTypes<int32>::ConstFlat& repeats_flat,
                    int axis, Tensor* output) {
-  int32 dims = input.shape().dims();
-  int32 outer_dim = 1;
-  for (int32 i = 0; i < axis; ++i) {
-    outer_dim *= input.shape().dim_size(i);
-  }
-  int32 inner_dim = 1;
-  for (int32 i = axis + 1; i < dims; ++i) {
-    inner_dim *= input.shape().dim_size(i);
-  }
-  
-  auto input_flat = input.shaped<T,3>({outer_dim,
-                                       input.shape().dim_size(axis),
-                                       inner_dim});
-  auto output_flat = output->shaped<T,3>({outer_dim,
-                                          output->shape().dim_size(axis),
-                                          inner_dim});
+  auto input_flat = input.flat_inner_outer_dims<T>(axis);
+  auto output_flat = output->flat_inner_outer_dims<T>(axis);
                                           
   RepeatGPUCall<T>(d, input_flat, repeats_flat, axis, &output_flat);
   
